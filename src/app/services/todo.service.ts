@@ -1,47 +1,44 @@
-import { Injectable } from '@angular/core';
+import { Injectable, computed, signal } from '@angular/core';
 import { Todo } from '../models/todo.model';
 
-@Injectable({
-  providedIn: 'root'
-})
+@Injectable({ providedIn: 'root' })
 export class TodoService {
-  private todos: Todo[] = JSON.parse(localStorage.getItem('todos') || '[]');
+  private todosSignal = signal<Todo[]>(this.loadTodos());
 
-  constructor() {
-    this.updateTodos(); 
-  }
+  readonly todos = this.todosSignal.asReadonly();
+  readonly completedTodos = computed(() => this.todosSignal().filter(todo => todo.completed));
+  readonly activeTodos = computed(() => this.todosSignal().filter(todo => !todo.completed));
+  readonly totalTodos = computed(() => this.todosSignal().length);
 
-  getTodos(): Todo[] {
-    return [...this.todos]; 
-  }
-
-  addTodo(title: string): void {
-    this.todos.push({ id: Date.now(), title, completed: false, createdAt: new Date() });
-    this.updateTodos();
+  addTodo(title: string): 
+  void {
+    if (!title.trim()) return;
+    this.todosSignal.update(todos => [...todos, 
+      { id: Date.now(), title: title.trim(), completed: false, createdAt: new Date() }]);
+    this.persistTodos();
   }
 
   updateTodo(updatedTodo: Todo): void {
-    const index = this.todos.findIndex(todo => todo.id === updatedTodo.id);
-    if (index !== -1) {
-      this.todos[index] = { ...updatedTodo };
-      this.updateTodos();
-    }
+    this.todosSignal.update(todos => todos.map(todo => todo.id === updatedTodo.id ? updatedTodo : todo));
+    this.persistTodos();
   }
 
   deleteTodo(id: number): void {
-    this.todos = this.todos.filter(todo => todo.id !== id);
-    this.updateTodos();
+    this.todosSignal.update(todos => todos.filter(todo => todo.id !== id));
+    this.persistTodos();
   }
 
   toggleComplete(id: number): void {
-    const todo = this.todos.find(todo => todo.id === id);
-    if (todo) {
-      todo.completed = !todo.completed;
-      this.updateTodos();
-    }
+    this.todosSignal.update(todos => todos.map(todo => todo.id === id ? { ...todo, completed: !todo.completed } : todo));
+    this.persistTodos();
   }
 
-  private updateTodos(): void {
-    localStorage.setItem('todos', JSON.stringify(this.todos));
+  private persistTodos(): void {
+    localStorage.setItem('todos', JSON.stringify(this.todosSignal()));
+  }
+
+  private loadTodos(): Todo[] {
+    const storedTodos = localStorage.getItem('todos');
+    return storedTodos ? JSON.parse(storedTodos).map((todo: Todo) => ({ ...todo, createdAt: new Date(todo.createdAt) })) : [];
   }
 }

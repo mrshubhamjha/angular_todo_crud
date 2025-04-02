@@ -14,7 +14,7 @@ import { TodoListComponent } from './components/todo-list/todo-list.component';
   template: `
     <div class="min-h-screen bg-gray-100">
       <mat-toolbar color="primary" class="mb-4">
-        <span>Angular Todo App</span>
+        <span>{{title}}</span>
       </mat-toolbar>
       
       <app-todo-list></app-todo-list>
